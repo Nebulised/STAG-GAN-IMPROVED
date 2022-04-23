@@ -145,15 +145,25 @@ class Solver(nn.Module):
             if (i+1) % args.print_every == 0:
                 elapsed = time.time() - start_time
                 elapsed = str(datetime.timedelta(seconds=elapsed))[:-7]
-                log = "Elapsed time [%s], Iteration [%i/%i], " % (elapsed, i+1, args.total_iters)
-                all_losses = dict()
+                # log = "Elapsed time [%s], Iteration [%i/%i], " % (elapsed, i+1, args.total_iters)
+                print("================= CURRENT ITERATION : {} / {} ================= ".format(i + 1,
+                                                                                                args.total_iters))
+                allLosses = {key : {} for key in ["D/latent", "D/ref   ", "G/latent", "G/ref   "]}
                 for loss, prefix in zip([d_losses_latent, d_losses_ref, g_losses_latent, g_losses_ref],
-                                        ['D/latent_', 'D/ref_', 'G/latent_', 'G/ref_']):
+                                        list(allLosses.keys())):
                     for key, value in loss.items():
-                        all_losses[prefix + key] = value
-                all_losses['G/lambda_ds'] = args.lambda_ds
-                log += ' '.join(['%s: [%.4f]' % (key, value) for key, value in all_losses.items()])
-                print(log)
+                        allLosses[prefix][key] = value
+                # allLosses['G/lambda_ds'] = args.lambda_ds
+                for key, value in allLosses.items():
+                    printOut = "{} | ".format(key)
+                    for lossType, lossValue in value.items():
+                        printOut += "{} : {:.4f}  ".format(lossType,
+                                                     lossValue)
+                    print(printOut)
+
+                print("G/lambda_ds : {}".format(args.lambda_ds))
+                # log += ' '.join(['%s: [%.4f]' % (key, value) for key, value in allLosses.items()])
+                # print(log)
 
             # generate images for debugging
             if (i+1) % args.sample_every == 0:
