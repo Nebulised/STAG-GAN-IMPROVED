@@ -43,19 +43,22 @@ def main(args):
                                             which='source',
                                             img_size=args.img_size,
                                             batch_size=args.batch_size,
-                                             prob=args.randcrop_prob,
-                                            num_workers=args.num_workers),
+                                            prob=args.randcrop_prob,
+                                            num_workers=args.num_workers,
+                                            grayscale = args.grayscale),
                    "ref" : get_train_loader(root=args.train_img_dir,
                                             which='reference',
                                             img_size=args.img_size,
                                             batch_size=args.batch_size,
                                             prob=args.randcrop_prob,
-                                            num_workers=args.num_workers),
+                                            num_workers=args.num_workers,
+                                            grayscale = args.grayscale),
                    "val" : get_test_loader(root=args.val_img_dir,
                                            img_size=args.img_size,
-                                            batch_size=args.val_batch_size,
+                                           batch_size=args.val_batch_size,
                                            shuffle=True,
-                                            num_workers=args.num_workers)}
+                                           num_workers=args.num_workers,
+                                           grayscale = args.grayscale)}
         solver.train(loaders)
     elif args.mode == 'sample':
         assert len(subdirs(args.src_dir)) == args.num_domains
@@ -64,12 +67,14 @@ def main(args):
                                            img_size=args.img_size,
                                            batch_size=args.val_batch_size,
                                            shuffle=False,
-                                           num_workers=args.num_workers),
+                                           num_workers=args.num_workers,
+                                           grayscale = args.grayscale),
                    "ref" : get_test_loader(root=args.ref_dir,
                                            img_size=args.img_size,
                                            batch_size=args.val_batch_size,
                                            shuffle=False,
-                                           num_workers=args.num_workers)}
+                                           num_workers=args.num_workers,
+                                           grayscale = args.grayscale)}
         solver.sample(loaders)
     elif args.mode == 'eval':
         solver.evaluate()
@@ -109,6 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--w_hpf', type=float, default=0,
                         help='weight for high-pass filtering')
 
+    parser.add_argument("--grayscale", action="store_true", help = "Whether to load images in as grayscale")
     # training arguments
     parser.add_argument('--randcrop_prob', type=float, default=0.5,
                         help='Probabilty of using random-resized cropping')
