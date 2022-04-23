@@ -8,19 +8,13 @@ http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
 Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 """
 
-import os
 from os.path import join as ospj
 import json
 
-
-from tqdm import tqdm
 # import ffmpeg
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
 import torchvision.utils as vutils
 
 
@@ -146,53 +140,53 @@ def debug_image(nets, args, inputs, step):
 # Video-related functions #
 # ======================= #
 
-
-def sigmoid(x, w=1):
-    return 1. / (1 + np.exp(-w * x))
-
-
-def get_alphas(start=-5, end=5, step=0.5, len_tail=10):
-    return [0] + [sigmoid(alpha) for alpha in np.arange(start, end, step)] + [1] * len_tail
-
-
-def interpolate(nets, args, x_src, s_prev, s_next):
-    ''' returns T x C x H x W '''
-    B = x_src.size(0)
-    frames = []
-    masks = nets.fan.get_heatmap(x_src) if args.w_hpf > 0 else None
-    alphas = get_alphas()
-
-    for alpha in alphas:
-        s_ref = torch.lerp(s_prev, s_next, alpha)
-        x_fake = nets["generator"](x_src, s_ref, masks=masks)
-        entries = torch.cat([x_src.cpu(), x_fake.cpu()], dim=2)
-        frame = torchvision.utils.make_grid(entries, nrow=B, padding=0, pad_value=-1).unsqueeze(0)
-        frames.append(frame)
-    frames = torch.cat(frames)
-    return frames
-
-
-def slide(entries, margin=32):
-    """Returns a sliding reference window.
-    Args:
-        entries: a list containing two reference images, x_prev and x_next, 
-                 both of which has a shape (1, 3, 256, 256)
-    Returns:
-        canvas: output slide of shape (num_frames, 3, 256*2, 256+margin)
-    """
-    _, C, H, W = entries[0].shape
-    alphas = get_alphas()
-    T = len(alphas) # number of frames
-
-    canvas = - torch.ones((T, C, H*2, W + margin))
-    merged = torch.cat(entries, dim=2)  # (1, 3, 512, 256)
-    for t, alpha in enumerate(alphas):
-        top = int(H * (1 - alpha))  # top, bottom for canvas
-        bottom = H * 2
-        m_top = 0  # top, bottom for merged
-        m_bottom = 2 * H - top
-        canvas[t, :, top:bottom, :W] = merged[:, :, m_top:m_bottom, :]
-    return canvas
+#
+# def sigmoid(x, w=1):
+#     return 1. / (1 + np.exp(-w * x))
+#
+#
+# def get_alphas(start=-5, end=5, step=0.5, len_tail=10):
+#     return [0] + [sigmoid(alpha) for alpha in np.arange(start, end, step)] + [1] * len_tail
+#
+#
+# def interpolate(nets, args, x_src, s_prev, s_next):
+#     ''' returns T x C x H x W '''
+#     B = x_src.size(0)
+#     frames = []
+#     masks = nets.fan.get_heatmap(x_src) if args.w_hpf > 0 else None
+#     alphas = get_alphas()
+#
+#     for alpha in alphas:
+#         s_ref = torch.lerp(s_prev, s_next, alpha)
+#         x_fake = nets["generator"](x_src, s_ref, masks=masks)
+#         entries = torch.cat([x_src.cpu(), x_fake.cpu()], dim=2)
+#         frame = torchvision.utils.make_grid(entries, nrow=B, padding=0, pad_value=-1).unsqueeze(0)
+#         frames.append(frame)
+#     frames = torch.cat(frames)
+#     return frames
+#
+#
+# def slide(entries, margin=32):
+#     """Returns a sliding reference window.
+#     Args:
+#         entries: a list containing two reference images, x_prev and x_next,
+#                  both of which has a shape (1, 3, 256, 256)
+#     Returns:
+#         canvas: output slide of shape (num_frames, 3, 256*2, 256+margin)
+#     """
+#     _, C, H, W = entries[0].shape
+#     alphas = get_alphas()
+#     T = len(alphas) # number of frames
+#
+#     canvas = - torch.ones((T, C, H*2, W + margin))
+#     merged = torch.cat(entries, dim=2)  # (1, 3, 512, 256)
+#     for t, alpha in enumerate(alphas):
+#         top = int(H * (1 - alpha))  # top, bottom for canvas
+#         bottom = H * 2
+#         m_top = 0  # top, bottom for merged
+#         m_bottom = 2 * H - top
+#         canvas[t, :, top:bottom, :W] = merged[:, :, m_top:m_bottom, :]
+#     return canvas
 
 #
 # @torch.no_grad()
@@ -271,8 +265,10 @@ def slide(entries, margin=32):
 #         process.stdin.write(frame.astype(np.uint8).tobytes())
 #     process.stdin.close()
 #     process.wait()
+#
+#
+# def tensor2ndarray255(images):
+#     images = torch.clamp(images * 0.5 + 0.5, 0, 1)
+#     return images.cpu().numpy().transpose(0, 2, 3, 1) * 255
 
 
-def tensor2ndarray255(images):
-    images = torch.clamp(images * 0.5 + 0.5, 0, 1)
-    return images.cpu().numpy().transpose(0, 2, 3, 1) * 255
