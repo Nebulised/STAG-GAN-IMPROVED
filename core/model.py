@@ -134,7 +134,7 @@ class HighPass(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=1, numInChannels = 3):
+    def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=0, numInChannels = 3):
         super().__init__()
         dim_in = 2**14 // img_size
         self.img_size = img_size
@@ -282,10 +282,10 @@ class Discriminator(nn.Module):
 
 def build_model(args):
     numInChannels = 1 if args.grayscale else 3
-    generator = nn.DataParallel(Generator(args.img_size, args.style_dim, w_hpf=args.w_hpf, numInChannels=numInChannels))
-    mapping_network = nn.DataParallel(MappingNetwork(args.latent_dim, args.style_dim, args.num_domains))
-    style_encoder = nn.DataParallel(StyleEncoder(args.img_size, args.style_dim, args.num_domains, numInChannels=numInChannels))
-    discriminator = nn.DataParallel(Discriminator(args.img_size, args.num_domains, numInChannels=numInChannels))
+    generator = Generator(args.img_size, args.style_dim, w_hpf=args.w_hpf, numInChannels=numInChannels)
+    mapping_network = MappingNetwork(args.latent_dim, args.style_dim, args.num_domains)
+    style_encoder = StyleEncoder(args.img_size, args.style_dim, args.num_domains, numInChannels=numInChannels)
+    discriminator =Discriminator(args.img_size, args.num_domains, numInChannels=numInChannels)
     generator_ema = copy.deepcopy(generator)
     mapping_network_ema = copy.deepcopy(mapping_network)
     style_encoder_ema = copy.deepcopy(style_encoder)
