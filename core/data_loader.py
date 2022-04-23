@@ -85,7 +85,7 @@ def _make_balanced_sampler(labels):
 
 
 def get_train_loader(root, which='source', img_size=256,
-                     batch_size=8, prob=0.5, num_workers=4):
+                     batch_size=8, prob=0.5, num_workers=4, grayscale = False):
     print('Preparing DataLoader to fetch %s images '
           'during the training phase...' % which)
 
@@ -93,15 +93,15 @@ def get_train_loader(root, which='source', img_size=256,
         img_size, scale=[0.8, 1.0], ratio=[0.9, 1.1])
     rand_crop = transforms.Lambda(
         lambda x: crop(x) if random.random() < prob else x)
-
-    transform = transforms.Compose([
-        rand_crop,
-        transforms.Resize([img_size, img_size]),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                             std=[0.5, 0.5, 0.5]),
-    ])
+    transform = [transforms.Grayscale()] if grayscale else []
+    transform = transform + [rand_crop,
+                              transforms.Resize([img_size, img_size]),
+                              transforms.RandomHorizontalFlip(),
+                              transforms.ToTensor(),
+                              transforms.Normalize(mean=[0.5,],
+                                                   std=[0.5, ]),
+                              ]
+    transform = transforms.Compose(transform)
 
     if which == 'source':
         dataset = ImageFolder(root, transform)
@@ -121,7 +121,7 @@ def get_train_loader(root, which='source', img_size=256,
 
 def get_eval_loader(root, img_size=256, batch_size=32,
                     imagenet_normalize=True, shuffle=True,
-                    num_workers=4, drop_last=False):
+                    num_workers=4, drop_last=False, grayscale=False):
     print('Preparing DataLoader for the evaluation phase...')
     if imagenet_normalize:
         height, width = 299, 299
@@ -132,14 +132,15 @@ def get_eval_loader(root, img_size=256, batch_size=32,
         mean = [0.5, 0.5, 0.5]
         std = [0.5, 0.5, 0.5]
 
-    transform = transforms.Compose([
-        transforms.Resize([img_size, img_size]),
-        transforms.Resize([height, width]),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)
-    ])
-
-    dataset = DefaultDataset(root, transform=transform)
+    transform = [transforms.Grayscale()] if grayscale else []
+    transform =  transform + [transforms.Resize([img_size, img_size]),
+                              transforms.Resize([height, width]),
+                              transforms.ToTensor(),
+                              transforms.Normalize(mean=mean,
+                                                   std=std)
+                              ]
+    transform = transforms.Compose(transform)
+    dataset = DefaultDataset(root, transform=transform, grayscale = grayscale)
     return data.DataLoader(dataset=dataset,
                            batch_size=batch_size,
                            shuffle=shuffle,
@@ -149,15 +150,15 @@ def get_eval_loader(root, img_size=256, batch_size=32,
 
 
 def get_test_loader(root, img_size=256, batch_size=32,
-                    shuffle=True, num_workers=4):
+                    shuffle=True, num_workers=4, grayscale = False):
     print('Preparing DataLoader for the generation phase...')
-    transform = transforms.Compose([
-        transforms.Resize([img_size, img_size]),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                             std=[0.5, 0.5, 0.5]),
-    ])
-
+    transform = [transforms.Grayscale()] if grayscale else []
+    transform = transform + [transforms.Resize([img_size, img_size]),
+                             transforms.ToTensor(),
+                             transforms.Normalize(mean=[0.5, ],
+                                                  std=[0.5, ]),
+                             ]
+    transform = transforms.Compose(transform)
     dataset = ImageFolder(root, transform)
     return data.DataLoader(dataset=dataset,
                            batch_size=batch_size,

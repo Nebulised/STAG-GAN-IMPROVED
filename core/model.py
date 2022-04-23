@@ -134,17 +134,17 @@ class HighPass(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=1):
+    def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=1, numInChannels = 3):
         super().__init__()
         dim_in = 2**14 // img_size
         self.img_size = img_size
-        self.from_rgb = nn.Conv2d(3, dim_in, 3, 1, 1)
+        self.from_rgb = nn.Conv2d(numInChannels, dim_in, 3, 1, 1)
         self.encode = nn.ModuleList()
         self.decode = nn.ModuleList()
         self.to_rgb = nn.Sequential(
             nn.InstanceNorm2d(dim_in, affine=True),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(dim_in, 3, 1, 1, 0))
+            nn.Conv2d(dim_in, numInChannels, 1, 1, 0))
 
         # down/up-sampling blocks
         repeat_num = int(np.log2(img_size)) - 4
@@ -220,11 +220,11 @@ class MappingNetwork(nn.Module):
 
 
 class StyleEncoder(nn.Module):
-    def __init__(self, img_size=256, style_dim=64, num_domains=2, max_conv_dim=512):
+    def __init__(self, img_size=256, style_dim=64, num_domains=2, max_conv_dim=512, numInChannels = 3):
         super().__init__()
         dim_in = 2**14 // img_size
         blocks = []
-        blocks += [nn.Conv2d(3, dim_in, 3, 1, 1)]
+        blocks += [nn.Conv2d(numInChannels, dim_in, 3, 1, 1)]
 
         repeat_num = int(np.log2(img_size)) - 2
         for _ in range(repeat_num):
@@ -254,11 +254,11 @@ class StyleEncoder(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, img_size=256, num_domains=2, max_conv_dim=512):
+    def __init__(self, img_size=256, num_domains=2, max_conv_dim=512, numInChannels = 3):
         super().__init__()
         dim_in = 2**14 // img_size
         blocks = []
-        blocks += [nn.Conv2d(3, dim_in, 3, 1, 1)]
+        blocks += [nn.Conv2d(numInChannels, dim_in, 3, 1, 1)]
 
         repeat_num = int(np.log2(img_size)) - 2
         for _ in range(repeat_num):
@@ -281,10 +281,11 @@ class Discriminator(nn.Module):
 
 
 def build_model(args):
-    generator = nn.DataParallel(Generator(args.img_size, args.style_dim, w_hpf=args.w_hpf))
+    numInChannels = 1 if args.grayscale else 3
+    generator = nn.DataParallel(Generator(args.img_size, args.style_dim, w_hpf=args.w_hpf, numInChannels=numInChannels))
     mapping_network = nn.DataParallel(MappingNetwork(args.latent_dim, args.style_dim, args.num_domains))
-    style_encoder = nn.DataParallel(StyleEncoder(args.img_size, args.style_dim, args.num_domains))
-    discriminator = nn.DataParallel(Discriminator(args.img_size, args.num_domains))
+    style_encoder = nn.DataParallel(StyleEncoder(args.img_size, args.style_dim, args.num_domains, numInChannels=numInChannels))
+    discriminator = nn.DataParallel(Discriminator(args.img_size, args.num_domains, numInChannels=numInChannels))
     generator_ema = copy.deepcopy(generator)
     mapping_network_ema = copy.deepcopy(mapping_network)
     style_encoder_ema = copy.deepcopy(style_encoder)
@@ -298,10 +299,10 @@ def build_model(args):
                 "mapping_network" : mapping_network_ema,
                 "style_encoder" : style_encoder_ema}
 
-    if args.w_hpf > 0:
-        fan = nn.DataParallel(FAN(fname_pretrained=args.wing_path).eval())
-        fan.get_heatmap = fan.module.get_heatmap
-        nets.fan = fan
-        nets_ema.fan = fan
+    # if args.w_hpf > 0:
+    #     fan = nn.DataParallel(FAN(fname_pretrained=args.wing_path).eval())
+    #     fan.get_heatmap = fan.module.get_heatmap
+    #     nets.fan = fan
+    #     nets_ema.fan = fan
 
     return nets, nets_ema
