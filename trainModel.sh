@@ -3,6 +3,7 @@
 IMAGE_SIZE=64
 NUMBER_CLASSES=9
 SAMPLE_EVERY=500
+PRINT_EVERY=250
 
 
 python3 main.py --img_size "$IMAGE_SIZE"\
@@ -14,4 +15,5 @@ python3 main.py --img_size "$IMAGE_SIZE"\
  --val_img_dir "$2"\
  --mode "train"\
  --sample_every "$SAMPLE_EVERY"\
+ --print_every "$PRINT_EVERY"
 
