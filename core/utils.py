@@ -48,8 +48,8 @@ def denormalize(x):
 
 
 def save_image(x, ncol, filename):
-    x = denormalize(x)
-    vutils.save_image(x.cpu(), filename, nrow=ncol, padding=0)
+    # x = denormalize(x)
+    vutils.save_image(x.cpu(), filename, nrow=ncol, padding=0, normalize=True)
 
 
 @torch.no_grad()
