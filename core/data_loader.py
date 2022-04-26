@@ -98,7 +98,7 @@ def get_train_loader(root, which='source', img_size=256,
                               transforms.Resize([img_size, img_size]),
                               transforms.RandomHorizontalFlip(),
                               transforms.ToTensor(),
-                              transforms.Normalize(mean=[0.5,],
+                              transforms.Normalize(mean=[0.4,],
                                                    std=[0.5, ]),
                               ]
     transform = transforms.Compose(transform)
@@ -155,7 +155,7 @@ def get_test_loader(root, img_size=256, batch_size=32,
     transform = [transforms.Grayscale()] if grayscale else []
     transform = transform + [transforms.Resize([img_size, img_size]),
                              transforms.ToTensor(),
-                             transforms.Normalize(mean=[0.5, ],
+                             transforms.Normalize(mean=[0.4, ],
                                                   std=[0.5, ]),
                              ]
     transform = transforms.Compose(transform)
