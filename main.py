@@ -111,9 +111,8 @@ if __name__ == '__main__':
                         help='Weight for diversity sensitive loss')
     parser.add_argument('--ds_iter', type=int, default=100000,
                         help='Number of iterations to optimize diversity sensitive loss')
-    parser.add_argument('--w_hpf', type=float, default=0,
-                        help='weight for high-pass filtering')
-
+    parser.add_argument("--ada",
+                        action="store_true")
     parser.add_argument("--grayscale", action="store_true", help = "Whether to load images in as grayscale")
     # training arguments
     parser.add_argument('--randcrop_prob', type=float, default=0.5,
