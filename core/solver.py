@@ -50,11 +50,11 @@ class Solver(nn.Module):
                     weight_decay=args.weight_decay)
 
             self.ckptios = [
-                CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_nets.ckpt'), data_parallel=True, **self.nets),
-                CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_nets_ema.ckpt'), data_parallel=True, **self.nets_ema),
-                CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_optims.ckpt'), **self.optims)]
+                CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_nets.pt'), data_parallel=False, **self.nets),
+                CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_nets_ema.pt'), data_parallel=False, **self.nets_ema),
+                CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_optims.pt'), **self.optims)]
         else:
-            self.ckptios = [CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_nets_ema.ckpt'), data_parallel=True, **self.nets_ema)]
+            self.ckptios = [CheckpointIO(ospj(args.checkpoint_dir, '{:06d}_nets_ema.pt'), data_parallel=False, **self.nets_ema)]
 
         self.to(self.device)
         for name, network in self.named_children():
@@ -170,10 +170,10 @@ class Solver(nn.Module):
                 os.makedirs(args.sample_dir, exist_ok=True)
                 utils.debug_image(nets_ema, args, inputs=inputs_val, step=i+1)
 
-            # # save model checkpoints
-            # if (i+1) % args.save_every == 0:
-            #     self._save_checkpoint(step=i+1)
-            #
+            # save model checkpoints
+            if (i+1) % args.save_every == 0:
+                self._save_checkpoint(step=i+1)
+
             # # compute FID and LPIPS if necessary
             # if (i+1) % args.eval_every == 0:
             #     calculate_metrics(nets_ema, args, i+1, mode='latent')
