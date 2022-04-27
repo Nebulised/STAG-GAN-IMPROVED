@@ -7,7 +7,7 @@ This work is licensed under the Creative Commons Attribution-NonCommercial
 http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
 Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 """
-
+from adaptiveAugmentation import AdaptiveAugmentation
 import os
 from os.path import join as ospj
 import time
@@ -78,7 +78,7 @@ class Solver(nn.Module):
     def train(self, loaders):
         args = self.args
         nets = self.nets
-
+        adaptiveAug = AdaptiveAugmentation(batchSize=args.batch_size) if args.ada else None
         nets_ema = self.nets_ema
         optims = self.optims
 
@@ -103,24 +103,24 @@ class Solver(nn.Module):
             x_ref, x_ref2, y_trg = inputs["x_ref"], inputs["x_ref2"], inputs["y_ref"]
             z_trg, z_trg2 = inputs["z_trg"], inputs["z_trg2"]
 
-            masks = nets.fan.get_heatmap(x_real) if args.w_hpf > 0 else None
+
 
             # train the discriminator
             d_loss, d_losses_latent = compute_d_loss(
-                nets, args, x_real, y_org, y_trg, z_trg=z_trg, masks=masks)
+                nets, args, x_real, y_org, y_trg, z_trg=z_trg, adaptiveAug=adaptiveAug)
             self._reset_grad()
             d_loss.backward()
             optims["discriminator"].step()
 
             d_loss, d_losses_ref = compute_d_loss(
-                nets, args, x_real, y_org, y_trg, x_ref=x_ref, masks=masks)
+                nets, args, x_real, y_org, y_trg, x_ref=x_ref, adaptiveAug=adaptiveAug)
             self._reset_grad()
             d_loss.backward()
             optims["discriminator"].step()
 
             # train the generator
             g_loss, g_losses_latent = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], masks=masks)
+                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2])
             self._reset_grad()
             g_loss.backward()
             optims["generator"].step()
@@ -128,7 +128,7 @@ class Solver(nn.Module):
             optims["style_encoder"].step()
 
             g_loss, g_losses_ref = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2], masks=masks)
+                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2])
             self._reset_grad()
             g_loss.backward()
             optims["generator"].step()
@@ -145,9 +145,12 @@ class Solver(nn.Module):
             if (i+1) % args.print_every == 0:
                 elapsed = time.time() - start_time
                 elapsed = str(datetime.timedelta(seconds=elapsed))[:-7]
-                # log = "Elapsed time [%s], Iteration [%i/%i], " % (elapsed, i+1, args.total_iters)
+
                 print("================= CURRENT ITERATION : {} / {} ================= ".format(i + 1,
                                                                                                 args.total_iters))
+                print("Elapsed time [%s], Iteration [%i/%i], " % (elapsed, i+1, args.total_iters))
+                if adaptiveAug is not None:
+                    print("ADA VALUE : {}".format(adaptiveAug.augmentProb))
                 allLosses = {key : {} for key in ["D/latent", "D/ref   ", "G/latent", "G/ref   "]}
                 for loss, prefix in zip([d_losses_latent, d_losses_ref, g_losses_latent, g_losses_ref],
                                         list(allLosses.keys())):
