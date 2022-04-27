@@ -43,14 +43,12 @@ def main(args):
                                             which='source',
                                             img_size=args.img_size,
                                             batch_size=args.batch_size,
-                                            prob=args.randcrop_prob,
                                             num_workers=args.num_workers,
                                             grayscale = args.grayscale),
                    "ref" : get_train_loader(root=args.train_img_dir,
                                             which='reference',
                                             img_size=args.img_size,
                                             batch_size=args.batch_size,
-                                            prob=args.randcrop_prob,
                                             num_workers=args.num_workers,
                                             grayscale = args.grayscale),
                    "val" : get_test_loader(root=args.val_img_dir,
@@ -78,9 +76,6 @@ def main(args):
         solver.sample(loaders)
     elif args.mode == 'eval':
         solver.evaluate()
-    elif args.mode == 'align':
-        from core.wing import align_faces
-        align_faces(args, args.inp_dir, args.out_dir)
     else:
         raise NotImplementedError
 
@@ -115,8 +110,9 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("--grayscale", action="store_true", help = "Whether to load images in as grayscale")
     # training arguments
-    parser.add_argument('--randcrop_prob', type=float, default=0.5,
-                        help='Probabilty of using random-resized cropping')
+    parser.add_argument("--w_hpf",
+                        default = 0,
+                        type = int)
     parser.add_argument('--total_iters', type=int, default=100000,
                         help='Number of total iterations')
     parser.add_argument('--resume_iter', type=int, default=0,
