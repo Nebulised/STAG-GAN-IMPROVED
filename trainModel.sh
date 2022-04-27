@@ -3,7 +3,7 @@
 IMAGE_SIZE=128
 NUMBER_CLASSES=6
 SAMPLE_EVERY=2500
-PRINT_EVERY=2500
+PRINT_EVERY=100
 
 
 python3 main.py --img_size "$IMAGE_SIZE"\
@@ -19,5 +19,7 @@ python3 main.py --img_size "$IMAGE_SIZE"\
  --batch_size 3\
  --save_every 5000\
  --ds_iter 30000\
- --total_iters 30000
+ --total_iters 30000\
+ --lambda_cyc 5\
+ --lambda_ds 2
 
