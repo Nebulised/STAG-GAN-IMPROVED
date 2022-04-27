@@ -8,9 +8,9 @@ PRINT_EVERY=2500
 
 python3 main.py --img_size "$IMAGE_SIZE"\
  --num_domains "$NUMBER_CLASSES"\
- --w_hpf 0\
  --grayscale\
- --randcrop_prob 0.5\
+ --w_hpf 0\
+ --ada\
  --train_img_dir "$1"\
  --val_img_dir "$2"\
  --mode "train"\
