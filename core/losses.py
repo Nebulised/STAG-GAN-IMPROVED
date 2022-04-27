@@ -15,13 +15,19 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
 
         x_fake = nets["generator"](x_real, s_trg, masks=masks)
 
-    x_real.requires_grad = True
+
+        if adaptiveAug is not None:
+            x_fake_aug = adaptiveAug.forward(x_fake)
+        else:
+            x_fake_aug = x_fake
+
+    x_real.requires_grad_()
     if adaptiveAug is not None:
         x_real_aug = adaptiveAug.forward(x_real)
-        x_fake_aug = adaptiveAug.forward(x_fake)
     else:
         x_real_aug = x_real
-        x_fake_aug = x_fake
+
+
 
     #### DISCRIMINATOR ON REAL
 
