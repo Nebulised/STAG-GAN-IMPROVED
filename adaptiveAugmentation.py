@@ -45,7 +45,7 @@ class AdaptiveAugmentation():
             dirToMoveProb = torch.sign(torch.FloatTensor([rTValue - self.targetRTVal])).item()
             self.augmentProb += dirToMoveProb * self.ADA_PROB_MOVE_RATE
             self.augmentProb = min(max(0, self.augmentProb), 1)
-            # print("NEW ADA AUGMENT : {}".format(self.augmentProb))
+            print("NEW ADA AUGMENT : {}".format(self.augmentProb))
             # logging.info("ADA AUGMENT PROB : {}".format(augmentProb))
             self.signedTrainStack = []
 
@@ -65,7 +65,7 @@ class AdaptiveAugmentation():
 
             # EACH IMAGE
             #TODO: Get this to work with non square images
-            if random.random() < self.augmentProb:
+            if random.random() < self.augmentProb and False:
                 i = torch.distributions.uniform.Uniform(low = 0,
                                                         high = 3).sample().int().item()
                 eachImage = torch.rot90(eachImage,
