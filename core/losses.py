@@ -1,4 +1,5 @@
 import torch
+from matplotlib import pyplot as plt
 from torch.nn import functional as F
 
 
@@ -50,7 +51,7 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
     return loss, {"real":loss_real.item(),"fake":loss_fake.item(),"reg" : loss_reg.item()}
 
 
-def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None, adaptiveAug = None):
+def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None, adaptiveAug = None, attentionGuided = False):
     assert (z_trgs is None) != (x_refs is None)
     if z_trgs is not None:
         z_trg, z_trg2 = z_trgs
@@ -62,6 +63,13 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
         s_trg = nets["mapping_network"](z_trg, y_trg)
     else:
         s_trg = nets["style_encoder"](x_ref, y_trg)
+
+    if attentionGuided:
+        with torch.no_grad():
+            featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
+            x_real = torch.mul(x_real, featureMap)
+
+    x_real.requires_grad = True
 
     x_fake = nets["generator"](x_real, s_trg)
     if adaptiveAug is not None:
@@ -85,9 +93,10 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     x_fake2 = x_fake2.detach()
     loss_ds = torch.mean(torch.abs(x_fake - x_fake2))
 
-    # cycle-consistency loss
-
     s_org = nets["style_encoder"](x_real, y_org)
+    # cycle-consistency loss
+    if attentionGuided:
+        x_fake = torch.mul(x_fake, featureMap)
     x_rec = nets["generator"](x_fake, s_org)
     loss_cyc = torch.mean(torch.abs(x_rec - x_real))
 
