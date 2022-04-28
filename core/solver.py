@@ -120,7 +120,7 @@ class Solver(nn.Module):
 
             # train the generator
             g_loss, g_losses_latent = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2])
+                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], attentionGuided=args.attentionGuided)
             self._reset_grad()
             g_loss.backward()
             optims["generator"].step()
@@ -128,7 +128,7 @@ class Solver(nn.Module):
             optims["style_encoder"].step()
 
             g_loss, g_losses_ref = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2])
+                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2],attentionGuided=args.attentionGuided)
             self._reset_grad()
             g_loss.backward()
             optims["generator"].step()
