@@ -43,12 +43,14 @@ def main(args):
                                             which='source',
                                             img_size=args.img_size,
                                             batch_size=args.batch_size,
+                                            prob = args.randcrop_prob,
                                             num_workers=args.num_workers,
                                             grayscale = args.grayscale),
                    "ref" : get_train_loader(root=args.train_img_dir,
                                             which='reference',
                                             img_size=args.img_size,
                                             batch_size=args.batch_size,
+                                            prob=args.randcrop_prob,
                                             num_workers=args.num_workers,
                                             grayscale = args.grayscale),
                    "val" : get_test_loader(root=args.val_img_dir,
@@ -110,6 +112,10 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("--grayscale", action="store_true", help = "Whether to load images in as grayscale")
     # training arguments
+    parser.add_argument('--randcrop_prob', type=float, default=0.5,
+                        help='Probabilty of using random-resized cropping')
+    parser.add_argument("--attentionGuided",
+                        action = "store_true")
     parser.add_argument("--w_hpf",
                         default = 0,
                         type = int)
@@ -169,9 +175,6 @@ if __name__ == '__main__':
     parser.add_argument('--out_dir', type=str, default='assets/representative/celeba_hq/src/female',
                         help='output directory when aligning faces')
 
-    # face alignment
-    parser.add_argument('--wing_path', type=str, default='expr/checkpoints/wing.ckpt')
-    parser.add_argument('--lm_path', type=str, default='expr/checkpoints/celeba_lm_mean.npz')
 
     # step size
     parser.add_argument('--print_every', type=int, default=10)
