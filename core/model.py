@@ -272,9 +272,20 @@ class Discriminator(nn.Module):
         blocks += [nn.Conv2d(dim_out, num_domains, 1, 1, 0)]
         self.main = nn.Sequential(*blocks)
 
-    def forward(self, x, y):
-        out = self.main(x)
-        out = out.view(out.size(0), -1)  # (batch, num_domains)
+    def forward(self, x, y, returnFeatureMap = False):
+        batchSize, numChannels, height, width = x.size()
+        for layerIndex, eachLayer in enumerate(self.main):
+            x = eachLayer(x)
+            if layerIndex == 1 and returnFeatureMap:
+                featureMap = x.detach().clone()
+                featureMap.requires_grad = False
+                featureMap = torch.sum(featureMap.abs(), keepdim=True,dim=1)
+                featureMapMax = torch.amax(featureMap, dim = (-1,-2)).view(-1,1,1,1)
+                featureMap = torch.div(featureMap, featureMapMax)
+                featureMap = torch.nn.functional.interpolate(featureMap, size=(height, width), mode="bilinear")
+                return featureMap
+
+        out = x.view(x.size(0), -1)  # (batch, num_domains)
         idx = torch.LongTensor(range(y.size(0))).to(y.device)
         out = out[idx, y]  # (batch)
         return out
