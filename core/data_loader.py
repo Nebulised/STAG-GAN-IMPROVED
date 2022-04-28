@@ -85,13 +85,17 @@ def _make_balanced_sampler(labels):
 
 
 def get_train_loader(root, which='source', img_size=256,
-                     batch_size=8, num_workers=4, grayscale = False):
+                     batch_size=8,prob = 0.5, num_workers=4, grayscale = False):
     print('Preparing DataLoader to fetch %s images '
           'during the training phase...' % which)
 
-
+    crop = transforms.RandomResizedCrop(
+        img_size, scale=[0.8, 1.0], ratio=[0.9, 1.1])
+    rand_crop = transforms.Lambda(
+        lambda x: crop(x) if random.random() < prob else x)
     transform = [transforms.Grayscale()] if grayscale else []
-    transform = transform + [transforms.Resize([img_size, img_size]),
+    transform = transform + [rand_crop,
+                             transforms.Resize([img_size, img_size]),
                               transforms.RandomHorizontalFlip(),
                               transforms.ToTensor(),
                               transforms.Normalize(mean=[0.4,],
