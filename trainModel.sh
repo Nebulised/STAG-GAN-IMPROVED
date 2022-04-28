@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_SIZE=128
+IMAGE_SIZE=64
 NUMBER_CLASSES=6
 SAMPLE_EVERY=2500
 PRINT_EVERY=100
@@ -16,10 +16,11 @@ python3 main.py --img_size "$IMAGE_SIZE"\
  --mode "train"\
  --sample_every "$SAMPLE_EVERY"\
  --print_every "$PRINT_EVERY"\
- --batch_size 3\
- --save_every 5000\
- --ds_iter 30000\
- --total_iters 30000\
+ --batch_size 6\
+ --save_every 2500\
+ --ds_iter 15000\
+ --total_iters 15000\
  --lambda_cyc 5\
- --lambda_ds 2
-
+ --lambda_ds 2\
+ --val_batch_size 4\
+ --attentionGuided
