@@ -23,7 +23,7 @@ class AdaptiveAugmentation():
 
 
 
-    def __init__(self, batchSize, augmentProb = 0.0, targetRTVal = 0.6, numberUpdatesToAVG = 32):
+    def __init__(self, batchSize, augmentProb = 0.0, targetRTVal = 0.6, numberUpdatesToAVG = 64):
         self.randomErase = torchvision.transforms.RandomErasing(p=1.0,
                                                                 scale=(0.25,0.25),
                                                                 ratio=(1,1),
