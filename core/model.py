@@ -97,7 +97,7 @@ class AdainResBlk(nn.Module):
 
     def _shortcut(self, x):
         if self.upsample:
-            x = F.interpolate(x, scale_factor=2, mode="bilinear")
+            x = F.interpolate(x, scale_factor=2, mode="nearest")
         if self.learned_sc:
             x = self.conv1x1(x)
         return x
@@ -106,7 +106,7 @@ class AdainResBlk(nn.Module):
         x = self.norm1(x, s)
         x = self.actv(x)
         if self.upsample:
-            x = F.interpolate(x, scale_factor=2, mode="bilinear")
+            x = F.interpolate(x, scale_factor=2, mode="nearest")
         x = self.conv1(x)
         x = self.norm2(x, s)
         x = self.actv(x)
