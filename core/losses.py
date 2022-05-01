@@ -64,10 +64,7 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     else:
         s_trg = nets["style_encoder"](x_ref, y_trg)
 
-    if attentionGuided:
-        with torch.no_grad():
-            featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
-            x_real = torch.mul(x_real, featureMap)
+
 
     x_real.requires_grad = True
 
@@ -94,10 +91,16 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     loss_ds = torch.mean(torch.abs(x_fake - x_fake2))
 
     s_org = nets["style_encoder"](x_real, y_org)
-    # cycle-consistency loss
+
     if attentionGuided:
-        x_fake = torch.mul(x_fake, featureMap)
+        with torch.no_grad():
+            featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
+            x_real = torch.mul(x_real, featureMap)
     x_rec = nets["generator"](x_fake, s_org)
+    # if attentionGuided:
+    #     with torch.no_grad():
+    #         # featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
+    #         x_rec = torch.mul(x_rec, featureMap)
     loss_cyc = torch.mean(torch.abs(x_rec - x_real))
 
     loss = loss_adv + args.lambda_sty * loss_sty \
