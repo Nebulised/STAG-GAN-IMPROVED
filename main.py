@@ -109,13 +109,15 @@ if __name__ == '__main__':
     parser.add_argument('--ds_iter', type=int, default=100000,
                         help='Number of iterations to optimize diversity sensitive loss')
     parser.add_argument("--ada",
-                        action="store_true")
-    parser.add_argument("--grayscale", action="store_true", help = "Whether to load images in as grayscale")
+                        action="store_true",
+                        default= False)
+    parser.add_argument("--grayscale", action="store_true", help = "Whether to load images in as grayscale", default = False)
     # training arguments
     parser.add_argument('--randcrop_prob', type=float, default=0.5,
                         help='Probabilty of using random-resized cropping')
     parser.add_argument("--attentionGuided",
-                        action = "store_true")
+                        action = "store_true",
+                        default = False)
     parser.add_argument("--w_hpf",
                         default = 0,
                         type = int)
@@ -175,7 +177,9 @@ if __name__ == '__main__':
     parser.add_argument('--out_dir', type=str, default='assets/representative/celeba_hq/src/female',
                         help='output directory when aligning faces')
 
-
+    parser.add_argument("--numSamplesPerClass",
+                        type = int,
+                        default = 2)
     # step size
     parser.add_argument('--print_every', type=int, default=10)
     parser.add_argument('--sample_every', type=int, default=5000)
