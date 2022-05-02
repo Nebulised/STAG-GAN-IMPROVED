@@ -134,18 +134,21 @@ class HighPass(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=0, numInChannels = 3):
+    def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=0, numInChannels = 3, layerWiseComposition = False):
         super().__init__()
         dim_in = 2**14 // img_size
         self.img_size = img_size
         self.from_rgb = nn.Conv2d(numInChannels, dim_in, 3, 1, 1)
         self.encode = nn.ModuleList()
         self.decode = nn.ModuleList()
+        self.layerWiseComposition = layerWiseComposition
         self.to_rgb = nn.Sequential(
             nn.InstanceNorm2d(dim_in, affine=True),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(dim_in, numInChannels, 1, 1, 0))
-
+            nn.Conv2d(dim_in, numInChannels + 1 if layerWiseComposition else numInChannels, 1, 1, 0))
+        # self.sigmoid = torch.nn.Sigmoid()
+        self.sigmoid = torch.nn.Hardsigmoid()
+        self.tanH = torch.nn.Tanh()
         # down/up-sampling blocks
         repeat_num = int(np.log2(img_size)) - 4
         if w_hpf > 0:
@@ -184,7 +187,15 @@ class Generator(nn.Module):
                 mask = masks[0] if x.size(2) in [32] else masks[1]
                 mask = F.interpolate(mask, size=x.size(2), mode='bilinear')
                 x = x + self.hpf(mask * cache[x.size(2)])
-        return self.to_rgb(x)
+        x = self.to_rgb(x)
+        if self.layerWiseComposition:
+            spatialAttentionMap, foreground = x[:,0], x[:,1:]
+            spatialAttentionMap =spatialAttentionMap.unsqueeze(1)
+            spatialAttentionMap = self.sigmoid(spatialAttentionMap)
+
+            return spatialAttentionMap, foreground
+
+        return x
 
 
 class MappingNetwork(nn.Module):
@@ -293,7 +304,7 @@ class Discriminator(nn.Module):
 
 def build_model(args):
     numInChannels = 1 if args.grayscale else 3
-    generator = Generator(args.img_size, args.style_dim, w_hpf=args.w_hpf, numInChannels=numInChannels)
+    generator = Generator(args.img_size, args.style_dim, w_hpf=args.w_hpf, numInChannels=numInChannels,layerWiseComposition=args.layerWiseComposition)
     mapping_network = MappingNetwork(args.latent_dim, args.style_dim, args.num_domains)
     style_encoder = StyleEncoder(args.img_size, args.style_dim, args.num_domains, numInChannels=numInChannels)
     discriminator =Discriminator(args.img_size, args.num_domains, numInChannels=numInChannels)

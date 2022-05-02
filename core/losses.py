@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from torch.nn import functional as F
 
 
-def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None, adaptiveAug = None):
+def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, masks=None, adaptiveAug = None, layerWiseComposition = False):
     assert (z_trg is None) != (x_ref is None)
     # with real images
 
@@ -14,7 +14,12 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
         else:  # x_ref is not None
             s_trg = nets["style_encoder"](x_ref, y_trg)
 
-        x_fake = nets["generator"](x_real, s_trg, masks=masks)
+        if layerWiseComposition:
+            spatialAttentionMap, foreground = nets["generator"](x_real, s_trg, masks=masks)
+
+            x_fake = torch.mul(x_real, 1-spatialAttentionMap) + torch.mul(foreground, spatialAttentionMap)
+        else:
+            x_fake = nets["generator"](x_real, s_trg, masks=masks)
 
 
         if adaptiveAug is not None:
@@ -51,7 +56,7 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
     return loss, {"real":loss_real.item(),"fake":loss_fake.item(),"reg" : loss_reg.item()}
 
 
-def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None, adaptiveAug = None, attentionGuided = False):
+def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, masks=None, adaptiveAug = None, attentionGuided = False, layerWiseComposition = False):
     assert (z_trgs is None) != (x_refs is None)
     if z_trgs is not None:
         z_trg, z_trg2 = z_trgs
@@ -68,7 +73,12 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
 
     x_real.requires_grad = True
 
-    x_fake = nets["generator"](x_real, s_trg)
+    if layerWiseComposition:
+        spatialAttentionMap, foreground = nets["generator"](x_real, s_trg, masks=masks)
+        x_fake = torch.mul(x_real, 1 - spatialAttentionMap) + torch.mul(foreground, spatialAttentionMap)
+    else:
+        x_fake = nets["generator"](x_real, s_trg, masks=masks)
+    # x_fake = nets["generator"](x_real, s_trg)
     if adaptiveAug is not None:
         x_fake_aug = adaptiveAug.forward(x_fake)
 
@@ -86,7 +96,12 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
         s_trg2 = nets["mapping_network"](z_trg2, y_trg)
     else:
         s_trg2 = nets["style_encoder"](x_ref2, y_trg)
-    x_fake2 = nets["generator"](x_real, s_trg2)
+    # x_fake2 = nets["generator"](x_real, s_trg2)
+    if layerWiseComposition:
+        spatialAttentionMap2, foreground2 = nets["generator"](x_real, s_trg2, masks=masks)
+        x_fake2 = torch.mul(x_real, 1 - spatialAttentionMap2) + torch.mul(foreground2, spatialAttentionMap2)
+    else:
+        x_fake2 = nets["generator"](x_real, s_trg2, masks=masks)
     x_fake2 = x_fake2.detach()
     loss_ds = torch.mean(torch.abs(x_fake - x_fake2))
 
@@ -94,21 +109,43 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
 
     if attentionGuided:
         with torch.no_grad():
+            print("attention guided")
             featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
             x_real = torch.mul(x_real, featureMap)
-    x_rec = nets["generator"](x_fake, s_org)
+
+    if layerWiseComposition:
+        reconstructedSpatialAttentionMap, reconstructedForeground = nets["generator"](x_fake, s_org, masks=masks)
+        x_rec = torch.mul(x_real, 1 - reconstructedSpatialAttentionMap) + torch.mul(reconstructedForeground, reconstructedSpatialAttentionMap)
+    else:
+        x_rec = nets["generator"](x_fake, s_org, masks=masks)
+    # x_rec = nets["generator"](x_fake, s_org)
     # if attentionGuided:
     #     with torch.no_grad():
     #         # featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
     #         x_rec = torch.mul(x_rec, featureMap)
     loss_cyc = torch.mean(torch.abs(x_rec - x_real))
+    if layerWiseComposition:
+        loss_sd_cyc = torch.mean(torch.abs(spatialAttentionMap - reconstructedSpatialAttentionMap))
+        loss_sd_con = torch.mean(torch.abs(spatialAttentionMap) + torch.abs(reconstructedSpatialAttentionMap))
+    else:
+        loss_sd_cyc = 0
+        loss_sd_con = 0
 
-    loss = loss_adv + args.lambda_sty * loss_sty \
-        - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
+
+
+    LAMBDA_SD_CYC = 5
+    if layerWiseComposition:
+        loss = loss_adv + args.lambda_sty * loss_sty \
+            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con* loss_sd_con
+    else:
+        loss = loss_adv + args.lambda_sty * loss_sty \
+            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
     return loss, {"adv": loss_adv.item(),
                   "sty":loss_sty.item(),
                   "ds":loss_ds.item(),
-                  "cyc":loss_cyc.item()}
+                  "cyc":loss_cyc.item(),
+                  "sd_cyc" : loss_sd_cyc,
+                  "sd_con" : loss_sd_con}
 
 
 def adv_loss(logits, target):
