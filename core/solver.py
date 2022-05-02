@@ -107,20 +107,20 @@ class Solver(nn.Module):
 
             # train the discriminator
             d_loss, d_losses_latent = compute_d_loss(
-                nets, args, x_real, y_org, y_trg, z_trg=z_trg, adaptiveAug=adaptiveAug)
+                nets, args, x_real, y_org, y_trg, z_trg=z_trg, adaptiveAug=adaptiveAug, layerWiseComposition=args.layerWiseComposition)
             self._reset_grad()
             d_loss.backward()
             optims["discriminator"].step()
 
             d_loss, d_losses_ref = compute_d_loss(
-                nets, args, x_real, y_org, y_trg, x_ref=x_ref, adaptiveAug=adaptiveAug)
+                nets, args, x_real, y_org, y_trg, x_ref=x_ref, adaptiveAug=adaptiveAug, layerWiseComposition=args.layerWiseComposition)
             self._reset_grad()
             d_loss.backward()
             optims["discriminator"].step()
 
             # train the generator
             g_loss, g_losses_latent = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], attentionGuided=args.attentionGuided)
+                nets, args, x_real, y_org, y_trg, z_trgs=[z_trg, z_trg2], attentionGuided=args.attentionGuided, layerWiseComposition=args.layerWiseComposition)
             self._reset_grad()
             g_loss.backward()
             optims["generator"].step()
@@ -128,7 +128,7 @@ class Solver(nn.Module):
             optims["style_encoder"].step()
 
             g_loss, g_losses_ref = compute_g_loss(
-                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2],attentionGuided=args.attentionGuided)
+                nets, args, x_real, y_org, y_trg, x_refs=[x_ref, x_ref2],attentionGuided=args.attentionGuided, layerWiseComposition=args.layerWiseComposition)
             self._reset_grad()
             g_loss.backward()
             optims["generator"].step()
