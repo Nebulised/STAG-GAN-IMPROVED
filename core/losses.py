@@ -107,11 +107,16 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
 
     s_org = nets["style_encoder"](x_real, y_org)
 
-    if attentionGuided:
+    if args.discGuidedLayerWiseComp:
         with torch.no_grad():
-            print("attention guided")
-            featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
-            x_real = torch.mul(x_real, featureMap)
+            # print("attention guided layer wise comp")
+            featureMap = nets["discriminator"](x_real, y_trg, returnFeatureMap=True)
+        featureMap = featureMap.detach()
+    # if attentionGuided:
+    #     with torch.no_grad():
+    #         print("attention guided")
+    #         featureMap = nets["discriminator"](x_real, y_trg,returnFeatureMap = True)
+    #         x_real = torch.mul(x_real, featureMap)
 
     if layerWiseComposition:
         reconstructedSpatialAttentionMap, reconstructedForeground = nets["generator"](x_fake, s_org, masks=masks)
@@ -128,15 +133,22 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
         loss_sd_cyc = torch.mean(torch.abs(spatialAttentionMap - reconstructedSpatialAttentionMap))
         loss_sd_con = torch.mean(torch.abs(spatialAttentionMap) + torch.abs(reconstructedSpatialAttentionMap))
     else:
-        loss_sd_cyc = 0
-        loss_sd_con = 0
+        loss_sd_cyc = torch.FloatTensor([0])
+        loss_sd_con = torch.FloatTensor([0])
+
+
+    if args.discGuidedLayerWiseComp:
+        loss_sd_disc = torch.mean(torch.abs(spatialAttentionMap - featureMap))
+    else:
+        loss_sd_disc = torch.FloatTensor([0])
 
 
 
-    LAMBDA_SD_CYC = 5
+
+
     if layerWiseComposition:
         loss = loss_adv + args.lambda_sty * loss_sty \
-            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con* loss_sd_con
+            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con * loss_sd_con + loss_sd_disc
     else:
         loss = loss_adv + args.lambda_sty * loss_sty \
             - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
@@ -144,8 +156,9 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
                   "sty":loss_sty.item(),
                   "ds":loss_ds.item(),
                   "cyc":loss_cyc.item(),
-                  "sd_cyc" : loss_sd_cyc,
-                  "sd_con" : loss_sd_con}
+                  "sd_cyc" : loss_sd_cyc.item(),
+                  "sd_con" : loss_sd_con.item(),
+                  "loss_sd_disc" : loss_sd_disc.item()}
 
 
 def adv_loss(logits, target):
