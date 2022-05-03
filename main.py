@@ -128,10 +128,12 @@ if __name__ == '__main__':
     parser.add_argument("--lambda_sd_cyc",
                         type = float,
                         default = 5.0)
-
+    parser.add_argument("--discGuidedLayerWiseComp",
+                        action = "store_true",
+                        default = False)
     parser.add_argument("--lambda_sd_con",
                         type = float,
-                        default = 1.0)
+                        default = 0.5)
     parser.add_argument('--total_iters', type=int, default=100000,
                         help='Number of total iterations')
     parser.add_argument('--resume_iter', type=int, default=0,
