@@ -32,7 +32,7 @@ def subdirs(dname):
 def main(args):
     print(args)
     cudnn.benchmark = True
-    torch.manual_seed(args.seed)
+    # torch.manual_seed(args.seed)
 
     solver = Solver(args)
 
@@ -59,23 +59,35 @@ def main(args):
                                            shuffle=True,
                                            num_workers=args.num_workers,
                                            grayscale = args.grayscale)}
+
         solver.train(loaders)
     elif args.mode == 'sample':
-        assert len(subdirs(args.src_dir)) == args.num_domains
-        assert len(subdirs(args.ref_dir)) == args.num_domains
-        loaders = {"src" : get_test_loader(root=args.src_dir,
-                                           img_size=args.img_size,
-                                           batch_size=args.val_batch_size,
-                                           shuffle=False,
-                                           num_workers=args.num_workers,
-                                           grayscale = args.grayscale),
-                   "ref" : get_test_loader(root=args.ref_dir,
-                                           img_size=args.img_size,
-                                           batch_size=args.val_batch_size,
-                                           shuffle=False,
-                                           num_workers=args.num_workers,
-                                           grayscale = args.grayscale)}
-        solver.sample(loaders)
+        # lenResultsDir = len(os.listdir(args.result_dir))
+        #
+        #
+        # type = os.path.split(args.result_dir)[-1]
+        # args.targetDomain = CLASSES.index(type)
+
+        srcLoader = get_test_loader(root=args.src_dir,
+                                    img_size=args.img_size,
+                                    batch_size=1,
+                                    shuffle=True,
+                                    num_workers=0,
+                                    grayscale = args.grayscale)
+        solver.sample(srcLoader=srcLoader,numSamplesToGenerate=args.numSamplesToGenerate, targetDomain = args.targetDomain)
+        # loaders = {"src" : get_test_loader(root=args.src_dir,
+        #                                    img_size=args.img_size,
+        #                                    batch_size=args.val_batch_size,
+        #                                    shuffle=False,
+        #                                    num_workers=args.num_workers,
+        #                                    grayscale = args.grayscale),
+        #            "ref" : get_test_loader(root=args.ref_dir,
+        #                                    img_size=args.img_size,
+        #                                    batch_size=args.val_batch_size,
+        #                                    shuffle=False,
+        #                                    num_workers=args.num_workers,
+        #                                    grayscale = args.grayscale)}
+        # solver.sample(loaders)
     elif args.mode == 'eval':
         solver.evaluate()
     else:
@@ -183,10 +195,15 @@ if __name__ == '__main__':
                         help='Directory for saving generated images and videos')
     parser.add_argument('--src_dir', type=str, default='assets/representative/celeba_hq/src',
                         help='Directory containing input source images')
-    parser.add_argument('--ref_dir', type=str, default='assets/representative/celeba_hq/ref',
-                        help='Directory containing input reference images')
-    parser.add_argument('--inp_dir', type=str, default='assets/representative/custom/female',
-                        help='input directory when aligning faces')
+    # parser.add_argument('--ref_dir', type=str, default='assets/representative/celeba_hq/ref',
+    #                     help='Directory containing input reference images')
+    # parser.add_argument('--inp_dir', type=str, default='assets/representative/custom/female',
+    #                     help='input directory when aligning faces')
+    parser.add_argument("--targetDomain",
+                        type = int)
+    parser.add_argument("--numSamplesToGenerate",
+                        type = int,
+                        default = 1000)
     parser.add_argument('--out_dir', type=str, default='assets/representative/celeba_hq/src/female',
                         help='output directory when aligning faces')
 
