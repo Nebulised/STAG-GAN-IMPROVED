@@ -181,6 +181,39 @@ class Solver(nn.Module):
             # if (i+1) % args.eval_every == 0:
             #     calculate_metrics(nets_ema, args, i+1, mode='latent')
             #     calculate_metrics(nets_ema, args, i+1, mode='reference')
+    @torch.no_grad()
+    def sample(self, srcLoader, numSamplesToGenerate, targetDomain):
+        args = self.args
+        nets_ema = self.nets_ema
+        os.makedirs(args.result_dir, exist_ok=True)
+        self._load_checkpoint(args.resume_iter)
+        for eachNet in nets_ema.values():
+            eachNet.eval()
+
+        for sampleNo in range(numSamplesToGenerate):
+
+            outFile = os.path.join(args.result_dir, "target_domain={}_{}.png".format(targetDomain,
+                                                                                      sampleNo))
+
+
+            if os.path.exists(outFile):
+                print("PATH EXISTS")
+                continue
+            else:
+                print("WRITING OUT TO : {}".format(outFile))
+
+            userInput = False
+            while not userInput:
+                src = next(InputFetcher(srcLoader, None, args.latent_dim, 'test'))
+                z_trg_list = torch.randn(1, 1, args.latent_dim).cuda()
+                userInput = utils.translate_using_latent(nets = nets_ema,
+                                                         args = args,
+                                                         x_src = src["x"],
+                                                         y_trg_list=torch.Tensor([targetDomain]).view(1,-1).cuda().long(),
+                                                         z_trg_list=z_trg_list,
+                                                         psi=1.0,
+                                                         filename=outFile,
+                                                         outputBoth=False)
 
     # @torch.no_grad()
     # def sample(self, loaders):
