@@ -16,6 +16,7 @@ import json
 import torch
 import torch.nn as nn
 import torchvision.utils as vutils
+from matplotlib import pyplot as plt
 
 
 def save_json(json_file, filename):
@@ -57,10 +58,21 @@ def translate_and_reconstruct(nets, args, x_src, y_src, x_ref, y_ref, filename):
     N, C, H, W = x_src.size()
     s_ref = nets["style_encoder"](x_ref, y_ref)
     masks = nets.fan.get_heatmap(x_src) if args.w_hpf > 0 else None
-    x_fake = nets["generator"](x_src, s_ref, masks=masks)
+    if args.layerWiseComposition:
+        spatialAttentionMap, foreground = nets["generator"](x_src, s_ref, masks=masks)
+        x_fake = torch.mul(x_src, 1 - spatialAttentionMap) + torch.mul(foreground, spatialAttentionMap)
+    else:
+        x_fake = nets["generator"](x_src, s_ref, masks=masks)
+    # x_fake = nets["generator"](x_src, s_ref, masks=masks)
     s_src = nets["style_encoder"](x_src, y_src)
     masks = nets.fan.get_heatmap(x_fake) if args.w_hpf > 0 else None
-    x_rec = nets["generator"](x_fake, s_src, masks=masks)
+
+    if args.layerWiseComposition:
+        reconstructedSpatialAttentionMap, foreground = nets["generator"](x_src, s_ref, masks=masks)
+        x_rec = torch.mul(x_fake, 1 - reconstructedSpatialAttentionMap) + torch.mul(foreground, reconstructedSpatialAttentionMap)
+    else:
+        x_rec = nets["generator"](x_fake, s_src, masks=masks)
+    # x_rec = nets["generator"](x_fake, s_src, masks=masks)
     x_concat = [x_src, x_ref, x_fake, x_rec]
     x_concat = torch.cat(x_concat, dim=0)
     save_image(x_concat, N, filename)
@@ -68,10 +80,13 @@ def translate_and_reconstruct(nets, args, x_src, y_src, x_ref, y_ref, filename):
 
 
 @torch.no_grad()
-def translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filename):
+def translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filename, outputBoth = True):
     N, C, H, W = x_src.size()
     latent_dim = z_trg_list[0].size(1)
-    x_concat = [x_src]
+    if outputBoth:
+        x_concat = [x_src]
+    else:
+        x_concat = []
     masks = nets.fan.get_heatmap(x_src) if args.w_hpf > 0 else None
 
     for i, y_trg in enumerate(y_trg_list):
@@ -84,11 +99,25 @@ def translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filen
         for z_trg in z_trg_list:
             s_trg = nets["mapping_network"](z_trg, y_trg)
             s_trg = torch.lerp(s_avg, s_trg, psi)
-            x_fake = nets["generator"](x_src, s_trg, masks=masks)
-            x_concat += [x_fake]
+            if args.layerWiseComposition:
+                spatialAttentionMap, foreground = nets["generator"](x_src, s_trg, masks=masks)
+                x_fake = torch.mul(x_src, 1 - spatialAttentionMap) + torch.mul(foreground, spatialAttentionMap)
 
+            else:
+                x_fake = nets["generator"](x_src, s_trg, masks=masks)
+            # x_fake = nets["generator"](x_src, s_trg, masks=masks)
+            plt.imshow(x_fake[0].clone().detach().cpu().permute(1,2,0), cmap="gray")
+            plt.show(block = False)
+            # userAnswer = input("SAVE IMAGE?")
+            # if userAnswer.lower() == "n":
+            #     return False
+            x_concat += [x_fake]
+    # if args.layerWiseComposition:
+    #     plt.imshow(spatialAttentionMap[0].clone().detach().cpu().permute(1, 2, 0), cmap="gray")
+    #     plt.savefig("SPATIAL_MAP.png")
     x_concat = torch.cat(x_concat, dim=0)
     save_image(x_concat, N, filename)
+    return True
 
 
 @torch.no_grad()
@@ -102,13 +131,44 @@ def translate_using_reference(nets, args, x_src, x_ref, y_ref, filename):
     s_ref_list = s_ref.unsqueeze(1).repeat(1, N, 1)
     x_concat = [x_src_with_wb]
     for i, s_ref in enumerate(s_ref_list):
-        x_fake = nets["generator"](x_src, s_ref, masks=masks)
+        # x_fake = nets["generator"](x_src, s_ref, masks=masks)
+        if args.layerWiseComposition:
+            spatialAttentionMap, foreground = nets["generator"](x_src, s_ref, masks=masks)
+            x_fake = torch.mul(x_src, 1 - spatialAttentionMap) + torch.mul(foreground, spatialAttentionMap)
+        else:
+            x_fake = nets["generator"](x_src, s_ref, masks=masks)
         x_fake_with_ref = torch.cat([x_ref[i:i+1], x_fake], dim=0)
         x_concat += [x_fake_with_ref]
 
     x_concat = torch.cat(x_concat, dim=0)
     save_image(x_concat, N+1, filename)
     del x_concat
+
+@torch.no_grad()
+def generateSamplesEachClass(nets, args, fetcher):
+    pass
+    device = fetcher.device
+    for eachSampleNumberIn in range(args.numSamplesPerClass):
+        for eachClass in range(args.num_domains):
+            nextInput = next(fetcher)
+            inputImage = nextInput["x"]
+
+
+            targetY = torch.Tensor([eachClass]).long().to(device)
+            z = torch.randn(size=(1,args.latent_dim)).to(device)
+            style = nets["mapping_network"](z, targetY)
+            fake = nets["generator"](inputImage, style)
+
+
+    # y_trg_list = [torch.tensor(y).repeat(N).to(device)
+    #               for y in range(min(args.num_domains, 5))]
+    # z_trg_list = torch.randn(args.num_outs_per_domain, 1, args.latent_dim).repeat(1, N, 1).to(device)
+    # for psi in [0.5, 0.7, 1.0]:
+    #     filename = ospj(args.sample_dir, '%06d_latent_psi_%.1f.jpg' % (step, psi))
+    #     translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filename)
+
+
+
 
 
 @torch.no_grad()
