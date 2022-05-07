@@ -45,7 +45,7 @@ def compute_d_loss(nets, args, x_real, y_org, y_trg, z_trg=None, x_ref=None, mas
 
     if adaptiveAug is not None:
         with torch.no_grad():
-            adaptiveAug.update(out.clone().detach())
+            adaptiveAug.update(out.detach().clone())
 
     out = nets["discriminator"](x_fake_aug, y_trg)
     loss_fake = adv_loss(out, 0)
@@ -140,15 +140,14 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     if args.discGuidedLayerWiseComp:
         loss_sd_disc = torch.mean(torch.abs(spatialAttentionMap - featureMap))
     else:
-        loss_sd_disc = torch.FloatTensor([0])
+        loss_sd_disc = torch.FloatTensor([0]).cuda()
 
 
 
-
-
+    # CONFIG C USED 2 FOR SD DISC LAMBDA WITH LAYER NUMBER 2
     if layerWiseComposition:
         loss = loss_adv + args.lambda_sty * loss_sty \
-            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con * loss_sd_con + loss_sd_disc
+            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con * loss_sd_con + 2 * loss_sd_disc
     else:
         loss = loss_adv + args.lambda_sty * loss_sty \
             - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
