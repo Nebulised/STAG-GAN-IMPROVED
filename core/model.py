@@ -16,8 +16,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
+from matplotlib import pyplot as plt
 
 
 class ResBlk(nn.Module):
@@ -79,19 +78,22 @@ class AdaIN(nn.Module):
 
 class AdainResBlk(nn.Module):
     def __init__(self, dim_in, dim_out, style_dim=64, w_hpf=0,
-                 actv=nn.LeakyReLU(0.2), upsample=False):
+                 actv=nn.LeakyReLU(0.2), upsample=False, applyNoise = True):
         super().__init__()
         self.w_hpf = w_hpf
         self.actv = actv
         self.upsample = upsample
         self.learned_sc = dim_in != dim_out
         self._build_weights(dim_in, dim_out, style_dim)
+        self.applyNoise = applyNoise
 
     def _build_weights(self, dim_in, dim_out, style_dim=64):
         self.conv1 = nn.Conv2d(dim_in, dim_out, 3, 1, 1)
         self.conv2 = nn.Conv2d(dim_out, dim_out, 3, 1, 1)
         self.norm1 = AdaIN(style_dim, dim_in)
         self.norm2 = AdaIN(style_dim, dim_out)
+        self.affine1 = torch.nn.Parameter(torch.zeros(1))
+        self.affine2 = torch.nn.Parameter(torch.zeros(1))
         if self.learned_sc:
             self.conv1x1 = nn.Conv2d(dim_in, dim_out, 1, 1, 0, bias=False)
 
@@ -108,9 +110,15 @@ class AdainResBlk(nn.Module):
         if self.upsample:
             x = F.interpolate(x, scale_factor=2, mode="nearest")
         x = self.conv1(x)
+        if self.applyNoise:
+            noiseBatchSize, _, noiseHeight, noiseWidth = x.size()
+            x = x + self.affine1 * torch.randn(size=(noiseBatchSize,1,noiseHeight, noiseWidth), device=x.device)
         x = self.norm2(x, s)
         x = self.actv(x)
         x = self.conv2(x)
+        if self.applyNoise:
+            noiseBatchSize, _, noiseHeight, noiseWidth = x.size()
+            x = x + self.affine2 * torch.randn(size=(noiseBatchSize,1,noiseHeight, noiseWidth), device=x.device)
         return x
 
     def forward(self, x, s):
@@ -269,8 +277,9 @@ class Discriminator(nn.Module):
         super().__init__()
         dim_in = 2**14 // img_size
         blocks = []
+        # self.tanH = torch.nn.Hardtanh()
+        self.tanH = torch.nn.Tanh()
         blocks += [nn.Conv2d(numInChannels, dim_in, 3, 1, 1)]
-
         repeat_num = int(np.log2(img_size)) - 2
         for _ in range(repeat_num):
             dim_out = min(dim_in*2, max_conv_dim)
@@ -282,18 +291,40 @@ class Discriminator(nn.Module):
         blocks += [nn.LeakyReLU(0.2)]
         blocks += [nn.Conv2d(dim_out, num_domains, 1, 1, 0)]
         self.main = nn.Sequential(*blocks)
+        self.testNum = 0
 
     def forward(self, x, y, returnFeatureMap = False):
         batchSize, numChannels, height, width = x.size()
+        if returnFeatureMap:
+            orig = x.detach().clone()
+        self.testNum +=1
         for layerIndex, eachLayer in enumerate(self.main):
             x = eachLayer(x)
-            if layerIndex == 1 and returnFeatureMap:
+            # Was 2 for C
+            if layerIndex == 2 and returnFeatureMap:
                 featureMap = x.detach().clone()
                 featureMap.requires_grad = False
-                featureMap = torch.sum(featureMap.abs(), keepdim=True,dim=1)
+                featureMap = torch.sum(self.tanH(featureMap).abs(), keepdim=True,dim=1)
+                # featureMap = torch.sum(featureMap.abs(), keepdim=True, dim = 1)
                 featureMapMax = torch.amax(featureMap, dim = (-1,-2)).view(-1,1,1,1)
                 featureMap = torch.div(featureMap, featureMapMax)
                 featureMap = torch.nn.functional.interpolate(featureMap, size=(height, width), mode="bilinear")
+                if self.testNum % 2500 == 0:
+                    print("SAVING ATTENTION MAPS")
+                    plt.imshow(featureMap[0].detach().clone().cpu().permute(1,2,0), cmap="gray")
+                    plt.savefig("ATTENTION_MAP_0.png")
+                    plt.imshow(featureMap[1].detach().clone().cpu().permute(1,2,0), cmap="gray")
+                    plt.savefig("ATTENTION_MAP_1.png")
+                    plt.imshow(featureMap[2].detach().clone().cpu().permute(1,2,0), cmap="gray")
+                    plt.savefig("ATTENTION_MAP_2.png")
+                    print("SAVING ATTENTION MAPS")
+                    plt.imshow(orig[0].detach().clone().cpu().permute(1,2,0), cmap="gray")
+                    plt.savefig("ATTENTION_MAP_ORIG_0.png")
+                    plt.imshow(orig[1].detach().clone().cpu().permute(1,2,0), cmap="gray")
+                    plt.savefig("ATTENTION_MAP_ORIG_1.png")
+                    plt.imshow(orig[2].detach().clone().cpu().permute(1,2,0), cmap="gray")
+                    plt.savefig("ATTENTION_MAP_ORIG_2.png")
+                    plt.close("all")
                 return featureMap
 
         out = x.view(x.size(0), -1)  # (batch, num_domains)
