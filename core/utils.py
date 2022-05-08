@@ -106,15 +106,18 @@ def translate_using_latent(nets, args, x_src, y_trg_list, z_trg_list, psi, filen
             else:
                 x_fake = nets["generator"](x_src, s_trg, masks=masks)
             # x_fake = nets["generator"](x_src, s_trg, masks=masks)
-            plt.imshow(x_fake[0].clone().detach().cpu().permute(1,2,0), cmap="gray")
-            plt.show(block = False)
             # userAnswer = input("SAVE IMAGE?")
             # if userAnswer.lower() == "n":
             #     return False
             x_concat += [x_fake]
-    # if args.layerWiseComposition:
-    #     plt.imshow(spatialAttentionMap[0].clone().detach().cpu().permute(1, 2, 0), cmap="gray")
-    #     plt.savefig("SPATIAL_MAP.png")
+    if args.layerWiseComposition and spatialAttentionMap.size()[0] > 1:
+        plt.imshow(spatialAttentionMap[0].detach().clone().cpu().permute(1, 2, 0), cmap="gray")
+        plt.savefig("SPATIAL_MAP.png")
+        plt.imshow(spatialAttentionMap[1].detach().clone().cpu().permute(1, 2, 0), cmap="gray")
+        plt.savefig("SPATIAL_MAP_1.png")
+        plt.imshow(spatialAttentionMap[2].detach().detach().cpu().permute(1, 2, 0), cmap="gray")
+        plt.savefig("SPATIAL_MAP_2.png")
+        plt.close("all")
     x_concat = torch.cat(x_concat, dim=0)
     save_image(x_concat, N, filename)
     return True
