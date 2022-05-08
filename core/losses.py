@@ -147,7 +147,7 @@ def compute_g_loss(nets, args, x_real, y_org, y_trg, z_trgs=None, x_refs=None, m
     # CONFIG C USED 2 FOR SD DISC LAMBDA WITH LAYER NUMBER 2
     if layerWiseComposition:
         loss = loss_adv + args.lambda_sty * loss_sty \
-            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con * loss_sd_con + 2 * loss_sd_disc
+            - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc + args.lambda_sd_cyc * loss_sd_cyc + args.lambda_sd_con * loss_sd_con + args.lambda_sd_disc * loss_sd_disc
     else:
         loss = loss_adv + args.lambda_sty * loss_sty \
             - args.lambda_ds * loss_ds + args.lambda_cyc * loss_cyc
