@@ -60,6 +60,9 @@ def main(args):
                                            num_workers=args.num_workers,
                                            grayscale = args.grayscale)}
 
+        print(loaders["src"].dataset.classes)
+
+
         solver.train(loaders)
     elif args.mode == 'sample':
         # lenResultsDir = len(os.listdir(args.result_dir))
@@ -108,7 +111,6 @@ if __name__ == '__main__':
                         help='Hidden dimension of mapping network')
     parser.add_argument('--style_dim', type=int, default=64,
                         help='Style code dimension')
-
     # weight for objective functions
     parser.add_argument('--lambda_reg', type=float, default=1,
                         help='Weight for R1 regularization')
@@ -120,6 +122,8 @@ if __name__ == '__main__':
                         help='Weight for diversity sensitive loss')
     parser.add_argument('--ds_iter', type=int, default=100000,
                         help='Number of iterations to optimize diversity sensitive loss')
+    parser.add_argument("--lambda_sd_disc",
+                        type = int, default = 2)
     parser.add_argument("--ada",
                         action="store_true",
                         default= False)
